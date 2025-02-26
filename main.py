@@ -78,8 +78,10 @@ def load_model_and_data():
     gdown.download(feature_url, feature_file, quiet=False)
     all_image_features = torch.load(feature_file)
 
-    idx_url =  f'https://drive.google.com/uc?id=1o-JWXmfUN1F6VMO6Lq-5U69qLDpyEMQ-'
-    idx_file = 'allidx_sbid_ra_dec.pkl'
+    #idx_url =  f'https://drive.google.com/uc?id=1o-JWXmfUN1F6VMO6Lq-5U69qLDpyEMQ-'
+    #idx_file = 'allidx_sbid_ra_dec.pkl'
+    idx_url =  f'https://drive.google.com/uc?id=14fwWW3KkkRfhAyaBVQeEKszx2iGLTCJc'
+    idx_file = 'allidx_sbid_ra_dec_flux_catwise.pkl'
     gdown.download(idx_url, idx_file, quiet=False)
     idx_dict = pd.read_pickle(idx_url)
     return model, preprocess, tokenizer, all_image_features, idx_dict
