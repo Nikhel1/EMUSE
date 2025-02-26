@@ -196,7 +196,7 @@ if 'sb_ra_dec' in locals():
         ra = float(sb_parts[1])
         dec = float(sb_parts[2])
         flux = float(sb_parts[3])
-        catwise = string(sb_parts[4])
+        catwise = sb_parts[4]
         
         new_row = pd.DataFrame({'SBID': [sb_id], 'RA': [f'{ra:.5f}'], 'Dec': [f'{dec:.5f}'], 'Flux': [f'{flux:.2f}'], 'Potential Host CatWISE': [f'{catwise}'], 'Probability': [f'{prob:.2f}']})
         df = pd.concat([df, new_row], ignore_index=True)
