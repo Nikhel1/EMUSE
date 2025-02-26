@@ -201,17 +201,11 @@ if 'sb_ra_dec' in locals():
         new_row = pd.DataFrame({'SBID': [sb_id], 'RA': [f'{ra:.5f}'], 'Dec': [f'{dec:.5f}'], 'Integrated Flux (mJy)': [f'{flux:.2f}'], 'CatWISE Potential Host': [f'{catwise}'], 'Probability': [f'{prob:.2f}']})
         df = pd.concat([df, new_row], ignore_index=True)
 
-    # Apply CSS styling to center-align all rows and columns
-    styled_df = df.style.set_properties(**{
-        'text-align': 'center',  # Center-align text
-    }).set_table_styles([{
-        'selector': 'th',
-        'props': [('text-align', 'center')]  # Center-align column headers
-    }])
-    st.dataframe(styled_df, use_container_width=True, hide_index=False)
+    df_cleaned = df.drop_duplicates(subset=["RA", "Dec"])
+    st.dataframe(df_cleaned, use_container_width=True, hide_index=False)
     
     # Add download button for the dataframe
-    csv = df.to_csv(index=False)
+    csv = df_cleaned.to_csv(index=False)
     st.download_button(
         label="Download table as CSV",
         data=csv,
