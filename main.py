@@ -188,7 +188,7 @@ if 'sb_ra_dec' in locals():
         top_n = len(filtered_sb_ra_dec)
     st.subheader(f"Top {top_n} similar sources:")
     
-    df = pd.DataFrame(columns=['SBID', 'RA', 'Dec', 'Integrated Flux', 'CatWISE Potential Host', 'Probability'])
+    df = pd.DataFrame(columns=['SBID', 'RA', 'Dec', 'Integrated Flux (mJy)', 'CatWISE Potential Host', 'Probability'])
     
     for i, (sb, prob) in enumerate(zip(filtered_sb_ra_dec[:top_n], filtered_probs[:top_n]), 1):
         sb_parts = sb.split('_')
@@ -198,10 +198,17 @@ if 'sb_ra_dec' in locals():
         flux = float(sb_parts[3])
         catwise = sb_parts[4]
         
-        new_row = pd.DataFrame({'SBID': [sb_id], 'RA': [f'{ra:.5f}'], 'Dec': [f'{dec:.5f}'], 'Integrated Flux': [f'{flux:.2f}'], 'CatWISE Potential Host': [f'{catwise}'], 'Probability': [f'{prob:.2f}']})
+        new_row = pd.DataFrame({'SBID': [sb_id], 'RA': [f'{ra:.5f}'], 'Dec': [f'{dec:.5f}'], 'Integrated Flux (mJy)': [f'{flux:.2f}'], 'CatWISE Potential Host': [f'{catwise}'], 'Probability': [f'{prob:.2f}']})
         df = pd.concat([df, new_row], ignore_index=True)
-    
-    st.dataframe(df, use_container_width=True, hide_index=False)
+
+    # Apply CSS styling to center-align all rows and columns
+    styled_df = df.style.set_properties(**{
+        'text-align': 'center',  # Center-align text
+    }).set_table_styles([{
+        'selector': 'th',
+        'props': [('text-align', 'center')]  # Center-align column headers
+    }])
+    st.dataframe(styled_df, use_container_width=True, hide_index=False)
     
     # Add download button for the dataframe
     csv = df.to_csv(index=False)
