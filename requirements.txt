@@ -73,3 +73,7 @@ tzdata==2025.2
 urllib3==2.3.0
 watchdog==6.0.0
 wcwidth==0.2.13
+markdown-it-py==3.0.0
+mdurl==0.1.2
+pygments==2.19.1
+rich==14.0.0
