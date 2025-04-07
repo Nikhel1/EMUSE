@@ -63,7 +63,8 @@ st.markdown("""
 # Load the model and data
 @st.cache_resource
 def load_model_and_data():
-    model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k', cache_dir='./clip_pretrained/')
+    #model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k', cache_dir='./clip_pretrained/')
+    model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', cache_dir='./clip_pretrained/')
     
     model_url =  f'https://drive.google.com/uc?id=1e1O-5774mkoGYZYC1gsXiGqDeu7KtOGs'
     model_file = 'epoch_99.pt'
