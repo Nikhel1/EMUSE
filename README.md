@@ -22,7 +22,7 @@ To run the app locally, follow these steps:
 
 ### Prerequisites
 
-Ensure you have Python installed on your system. The dependencies are listed in `requirements.txt`.
+Ensure you have Python installed on your system (last successfully worked with Python 3.8.5). The dependencies are listed in `requirements_local.txt`.
 
 ### Installation
 
@@ -36,7 +36,7 @@ Ensure you have Python installed on your system. The dependencies are listed in 
 2. Install dependencies:
 
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements_local.txt
    ```
 
 ### Running the App
