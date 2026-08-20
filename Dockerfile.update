@@ -1,0 +1,2 @@
+FROM nikhel/emuse:latest
+COPY main.py /app/main.py
