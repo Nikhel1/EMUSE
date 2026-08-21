@@ -65,6 +65,7 @@ def normalize_query(query: str) -> str:
 # ================================
 # 🔹 GEMINI QUERY EXPANSION
 # ================================
+
 try:
     import google.generativeai as genai
     GEMINI_IMPORT_OK = True
@@ -603,19 +604,23 @@ if input_option == "Text":
 
             selected_queries = []
             for i, query in enumerate(interpreted_queries):
+                checkbox_key = f"query_checkbox_{i}"
+                text_key = f"query_text_{i}"
+                if checkbox_key not in st.session_state:
+                    st.session_state[checkbox_key] = True
+                if text_key not in st.session_state:
+                    st.session_state[text_key] = query
                 row_left, row_right = st.columns([1, 5])
                 with row_left:
                     keep_this = st.checkbox(
                         "Use",
-                        value=st.session_state.get(f"query_checkbox_{i}", True),
-                        key=f"query_checkbox_{i}",
+                        key=checkbox_key,
                         label_visibility="collapsed",
                     )
                 with row_right:
                     edited_query = st.text_input(
                         f"Query {i+1}",
-                        value=st.session_state.get(f"query_text_{i}", query),
-                        key=f"query_text_{i}",
+                        key=text_key,
                         label_visibility="collapsed",
                     )
                 if keep_this and edited_query.strip():
