@@ -9,3 +9,6 @@ gdown
 matplotlib
 astroquery
 google-generativeai
+boto3
+reproject
+scipy
