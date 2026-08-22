@@ -406,7 +406,7 @@ def load_model_and_data():
     model_url =  f'https://drive.google.com/uc?id=1k0MNw1hyBDejxOovKwhQCPRmJil13ut5'
     model_file = 'epoch_99.pt'
     #gdown.download(model_url, model_file, quiet=False)
-    checkpoint = torch.load(model_file, map_location=torch.device('cpu')) #, weights_only=False)
+    checkpoint = torch.load(model_file, map_location=torch.device('cpu'), weights_only=False)
     model.load_state_dict(checkpoint['state_dict'])
     
     tokenizer = open_clip.get_tokenizer('ViT-B-32')

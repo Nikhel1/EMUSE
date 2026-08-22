@@ -7,12 +7,21 @@ ENV PYTHONUNBUFFERED=1
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (removed in same layer to keep image small)
+# Install system dependencies + AWS CLI v2
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
     git \
     build-essential \
+    curl \
+    unzip \
+    groff \
+    less \
+    && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip \
+    && unzip -q /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/awscliv2.zip /tmp/aws \
+    && aws --version \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (better layer caching)
