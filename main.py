@@ -367,14 +367,6 @@ st.markdown("""
         width: 100%;
         opacity: 0.6;
     }
-    /* Centre Display layer radio options and close gap below heading */
-    div[data-testid="stRadio"] > div[role="radiogroup"] {
-        justify-content: center !important;
-        display: flex !important;
-    }
-    div[data-testid="stRadio"] {
-        margin-top: -0.5rem;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -410,24 +402,24 @@ def load_model_and_data():
     #model_url =  f'https://drive.google.com/uc?id=1e1O-5774mkoGYZYC1gsXiGqDeu7KtOGs'
     model_url =  f'https://drive.google.com/uc?id=1k0MNw1hyBDejxOovKwhQCPRmJil13ut5'
     model_file = 'epoch_99.pt'
-    gdown.download(model_url, model_file, quiet=False)
+    #gdown.download(model_url, model_file, quiet=False)
     checkpoint = torch.load(model_file, map_location=torch.device('cpu'), weights_only=False)
     model.load_state_dict(checkpoint['state_dict'])
     
     tokenizer = open_clip.get_tokenizer('ViT-B-32')
     
-    feature_url =  f'https://drive.google.com/uc?id=1ihgHSS043G60ozg6v32rYUJJFx1uqs_H' # First Year, ~160 tiles
-    #feature_url =  f'https://drive.google.com/uc?id=11l-iVak_8QnycuePIvPwXbDBUP_ILP_Y' # Observations till June 2025
+    #feature_url =  f'https://drive.google.com/uc?id=1ihgHSS043G60ozg6v32rYUJJFx1uqs_H' # First Year, ~160 tiles
+    feature_url =  f'https://drive.google.com/uc?id=11l-iVak_8QnycuePIvPwXbDBUP_ILP_Y' # Observations till June 2025
     feature_file = 'all_sbid_image_features.pt'
-    gdown.download(feature_url, feature_file, quiet=False)
+    #gdown.download(feature_url, feature_file, quiet=False)
     all_image_features = torch.load(feature_file)
 
     #idx_url =  f'https://drive.google.com/uc?id=1o-JWXmfUN1F6VMO6Lq-5U69qLDpyEMQ-'
     #idx_file = 'allidx_sbid_ra_dec.pkl'
-    idx_url =  f'https://drive.google.com/uc?id=14fwWW3KkkRfhAyaBVQeEKszx2iGLTCJc'  # First Year, ~160 tiles 
-    #idx_url =  f'https://drive.google.com/uc?id=1rI1RzKDMMKrOyeE_7BaCNthYrYgYoRf8'  # Observations till June 2025
+    #idx_url =  f'https://drive.google.com/uc?id=14fwWW3KkkRfhAyaBVQeEKszx2iGLTCJc'  # First Year, ~160 tiles 
+    idx_url =  f'https://drive.google.com/uc?id=1rI1RzKDMMKrOyeE_7BaCNthYrYgYoRf8'  # Observations till June 2025
     idx_file = 'allidx_sbid_ra_dec_flux_catwise.pkl'
-    gdown.download(idx_url, idx_file, quiet=False)
+    #gdown.download(idx_url, idx_file, quiet=False)
     idx_dict = pd.read_pickle(idx_url)
     return model, preprocess, tokenizer, all_image_features, idx_dict
 
@@ -2483,17 +2475,24 @@ if results_for_cutout is not None and not results_for_cutout.empty:
         with _lmid:
             if len(layer_options) > 1:
                 st.markdown(
-                    "<p style='text-align:center; margin-bottom:0; font-weight:600;'>"
+                    "<p style='text-align:center; margin-bottom:4px; font-weight:600;'>"
                     "Display layer</p>",
                     unsafe_allow_html=True,
                 )
-                chosen_layer = st.radio(
-                    "Display layer",
-                    options=layer_options,
-                    key="multiwave_layer_choice",
-                    horizontal=True,
-                    label_visibility="collapsed",
-                )
+                # Build equal-width button columns — always centered regardless of CSS
+                _btn_cols = st.columns(len(layer_options))
+                for _i, _opt in enumerate(layer_options):
+                    with _btn_cols[_i]:
+                        _is_active = st.session_state.get("multiwave_layer_choice", layer_options[0]) == _opt
+                        _btn_style = "primary" if _is_active else "secondary"
+                        if st.button(_opt, key=f"layer_btn_{_i}", use_container_width=True, type=_btn_style):
+                            st.session_state.multiwave_layer_choice = _opt
+                            st.rerun()
+                chosen_layer = st.session_state.get("multiwave_layer_choice", layer_options[0])
+                # Keep choice valid if options changed (e.g. optical removed)
+                if chosen_layer not in layer_options:
+                    chosen_layer = layer_options[0]
+                    st.session_state.multiwave_layer_choice = chosen_layer
             else:
                 chosen_layer = layer_options[0]
                 st.session_state.multiwave_layer_choice = chosen_layer
