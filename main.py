@@ -410,24 +410,24 @@ def load_model_and_data():
     #model_url =  f'https://drive.google.com/uc?id=1e1O-5774mkoGYZYC1gsXiGqDeu7KtOGs'
     model_url =  f'https://drive.google.com/uc?id=1k0MNw1hyBDejxOovKwhQCPRmJil13ut5'
     model_file = 'epoch_99.pt'
-    #gdown.download(model_url, model_file, quiet=False)
+    gdown.download(model_url, model_file, quiet=False)
     checkpoint = torch.load(model_file, map_location=torch.device('cpu'), weights_only=False)
     model.load_state_dict(checkpoint['state_dict'])
     
     tokenizer = open_clip.get_tokenizer('ViT-B-32')
     
-    #feature_url =  f'https://drive.google.com/uc?id=1ihgHSS043G60ozg6v32rYUJJFx1uqs_H' # First Year, ~160 tiles
-    feature_url =  f'https://drive.google.com/uc?id=11l-iVak_8QnycuePIvPwXbDBUP_ILP_Y' # Observations till June 2025
+    feature_url =  f'https://drive.google.com/uc?id=1ihgHSS043G60ozg6v32rYUJJFx1uqs_H' # First Year, ~160 tiles
+    #feature_url =  f'https://drive.google.com/uc?id=11l-iVak_8QnycuePIvPwXbDBUP_ILP_Y' # Observations till June 2025
     feature_file = 'all_sbid_image_features.pt'
-    #gdown.download(feature_url, feature_file, quiet=False)
+    gdown.download(feature_url, feature_file, quiet=False)
     all_image_features = torch.load(feature_file)
 
     #idx_url =  f'https://drive.google.com/uc?id=1o-JWXmfUN1F6VMO6Lq-5U69qLDpyEMQ-'
     #idx_file = 'allidx_sbid_ra_dec.pkl'
-    #idx_url =  f'https://drive.google.com/uc?id=14fwWW3KkkRfhAyaBVQeEKszx2iGLTCJc'  # First Year, ~160 tiles 
-    idx_url =  f'https://drive.google.com/uc?id=1rI1RzKDMMKrOyeE_7BaCNthYrYgYoRf8'  # Observations till June 2025
+    idx_url =  f'https://drive.google.com/uc?id=14fwWW3KkkRfhAyaBVQeEKszx2iGLTCJc'  # First Year, ~160 tiles 
+    #idx_url =  f'https://drive.google.com/uc?id=1rI1RzKDMMKrOyeE_7BaCNthYrYgYoRf8'  # Observations till June 2025
     idx_file = 'allidx_sbid_ra_dec_flux_catwise.pkl'
-    #gdown.download(idx_url, idx_file, quiet=False)
+    gdown.download(idx_url, idx_file, quiet=False)
     idx_dict = pd.read_pickle(idx_url)
     return model, preprocess, tokenizer, all_image_features, idx_dict
 
