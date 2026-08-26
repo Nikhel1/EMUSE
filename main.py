@@ -2477,13 +2477,16 @@ if results_for_cutout is not None and not results_for_cutout.empty:
             div[data-testid="stRadio"] > div {
                 justify-content: center;
             }
+            div[data-testid="stRadio"] {
+                margin-top: -0.5rem;
+            }
             </style>""", unsafe_allow_html=True)
 
         _l1, _lmid, _l3 = st.columns([1, 6, 1])
         with _lmid:
             if len(layer_options) > 1:
                 st.markdown(
-                    "<p style='text-align:center; margin-bottom:4px; font-weight:600;'>"
+                    "<p style='text-align:center; margin-bottom:0; font-weight:600;'>"
                     "Display layer</p>",
                     unsafe_allow_html=True,
                 )
@@ -2492,7 +2495,7 @@ if results_for_cutout is not None and not results_for_cutout.empty:
                     options=layer_options,
                     key="multiwave_layer_choice",
                     horizontal=True,
-                    label_visibility="hidden",
+                    label_visibility="collapsed",
                 )
             else:
                 chosen_layer = layer_options[0]
