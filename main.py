@@ -257,9 +257,6 @@ def render_gemini_table_assistant(table_df, api_key):
         st.session_state.table_chat_messages = []
         st.session_state.table_assistant_open = False
 
-    if st.button("Open Gemini assistant for this table", key="open_table_assistant_btn", use_container_width=True):
-        st.session_state.table_assistant_open = True
-
     if not st.session_state.get("table_assistant_open", False):
         return
 
@@ -435,7 +432,10 @@ input_option = st.sidebar.radio("Choose input type:", ("Image", "Text"))
 # Common parameters
 remove_galactic = st.sidebar.checkbox("Remove galactic sources", value=True)
 above_prob_of = st.sidebar.slider("Minimum probability", 0.0, 1.0, 0.9, 0.01)
-top_n = st.sidebar.slider("Number of top results to display", 1, 5000, 200)
+_n_filtered = st.session_state.get("n_filtered_sources", 50000)
+_top_n_max = max(1, _n_filtered)
+_top_n_default = min(200, _top_n_max)
+top_n = st.sidebar.slider("Number of top results to display", 1, _top_n_max, _top_n_default)
 use_gemini_llm = False
 gemini_api_key = ""
 if "gemini_api_key_saved" not in st.session_state:
@@ -444,9 +444,9 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("Gemini Settings")
 if input_option == "Text":
     use_gemini_llm = st.sidebar.checkbox("Use Gemini", value=True)
-else:
-    st.sidebar.caption("Image search does not require Gemini.")
-    st.sidebar.caption("Gemini is used for table Q&A assistant only.")
+#else:
+#    st.sidebar.caption("Image search does not require Gemini.")
+#    st.sidebar.caption("Gemini is used for table Q&A assistant only.")
 gemini_api_key_input = st.sidebar.text_input(
     "Gemini API key",
     value=st.session_state.get("gemini_api_key_saved", ""),
@@ -460,40 +460,70 @@ gemini_api_key = st.session_state.get("gemini_api_key_saved", "")
 if gemini_api_key:
     st.sidebar.caption("Gemini API key saved for this session.")
 
-st.sidebar.markdown("<br><br><br>", unsafe_allow_html=True)
-with st.sidebar.expander(" &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ℹ️ &nbsp;&nbsp; How to Use EMUSE"):
+st.sidebar.markdown("---")
+with st.sidebar.expander("ℹ️ How to Use EMUSE"):
     st.markdown("""
     ### Search Methods
 
-    #### Text Search
-    - Select 'Text' from the sidebar options
-    - Enter a description of the astronomical object you're looking for (e.g., "A bent tailed radio galaxy")
-    - Click 'Search' to find matching objects from the EMU Survey
+    #### 🔤 Text Search
+    - Select **Text** from the input type options
+    - Enter a description of the object (e.g. *"A bent tailed radio galaxy"*)
+    - Optionally enable **Gemini** to expand and interpret your query
+    - Review the interpreted queries, tick the ones to use, or enter custom ones
+    - Click **Search**
 
-    #### Image Search  
-    - Select 'Image' from the sidebar options
-    - Upload a reference image (.jpg, .jpeg, or .png format). The image can just be the screenshot of 
-    your favorite radio source in EMU or any other survey
-    - Click 'Search' to find visually similar objects
+    #### 🖼 Image Search
+    - Select **Image** from the input type options
+    - Upload a reference image (`.jpg`, `.jpeg`, or `.png`)
+    - Click **Search** to find visually similar sources
 
+    ---
     ### Search Parameters
 
-    #### Remove Galactic Sources
-    - When checked, filters out objects within 10 degrees of the galactic plane
-    - Helps focus on extragalactic sources
-    - Recommended for most searches
+    **Remove Galactic Sources**
+    - Filters out objects within 10° of the galactic plane
+    - Recommended for most extragalactic searches
 
-    #### Minimum Probability
-    - Sets the confidence threshold for matches (0.0 to 1.0)
-    - Higher values (e.g., 0.9) give more precise but fewer results
-    - Lower values include more results but may be less accurate
+    **Minimum Probability**
+    - Confidence threshold for matches (0.0 – 1.0)
+    - Higher = fewer but more precise results
 
-    #### Number of Top Results
-    - Controls how many matching objects to display
-    - Range: 1 to 5000 results
-    - Default: 200 results
-    - Adjust based on your needs and search specificity
+    **Number of Top Results**
+    - Slider max updates automatically after each search to match the number of sources found above the chosen probability
+    - Default: 200
+
+    ---
+    ### Results Table
+
+    After a search, three action buttons appear below the table:
+
+    - **⬇ Download Table** — saves the visible results as a CSV
+    - **🖼 Generate Cutout** — opens the cutout workflow for a selected source
+    - **🤖 Gemini Assistant** — chat with Gemini about the result table
+
+    ---
+    ### Cutout Generation
+
+    - If EMU tile data is accessible (local or S3), cutouts are generated directly
+    - If not, enter your **CASDA OPAL credentials** to fetch cutouts via CASDA
+    - Provide SBID, RA, Dec, and cutout size, then click **Create this cutout**
+    - After the radio cutout is generated, a centred **⬇ Download Radio FITS** button appears
+
+    #### Optical / IR Overlay
+    - Fetch Legacy Survey (optical) or unWISE (IR) data to overlay on the radio cutout
+    - Once fetched, three download buttons appear: **Radio FITS**, **Optical FITS**, **IR FITS**
     """)
+
+st.sidebar.markdown(
+    """
+    <div style='text-align: center;'>
+        <p style='color: #34495E; font-size: 0.9em; margin-top: 20px;'>
+            &copy; Nikhel Gupta | CSIRO
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # Persist search results/cutout state across reruns
 if "results_df" not in st.session_state:
@@ -1999,9 +2029,13 @@ if sb_ra_dec is not None and filtered_probs is not None and show_search_results:
     else:
         filtered_sb_ra_dec = sb_ra_dec
 
-    st.success(f"Found {len(filtered_sb_ra_dec)} sources {'outside galactic regions ' if remove_galactic else ''}above probability of {above_prob_of}.")
-    if len(filtered_sb_ra_dec)<top_n:
-        top_n = len(filtered_sb_ra_dec)
+    _new_n_filtered = len(filtered_sb_ra_dec)
+    if st.session_state.get("n_filtered_sources") != _new_n_filtered:
+        st.session_state["n_filtered_sources"] = _new_n_filtered
+        st.rerun()
+
+    if _new_n_filtered < top_n:
+        top_n = _new_n_filtered
     st.subheader(f"Top {top_n} similar sources:")
 
     df = pd.DataFrame(columns=['SBID', 'RA', 'Dec', 'Integrated Flux (mJy)', 'CatWISE Potential Host', 'Probability'])
@@ -2020,7 +2054,36 @@ if sb_ra_dec is not None and filtered_probs is not None and show_search_results:
     st.session_state.results_df = df_cleaned  # cache table for cutouts and session
     st.dataframe(df_cleaned, use_container_width=True, hide_index=False)
 
-    # REMOVED Download CSV button here
+    # --- Three-button action row ---
+    _col_dl, _col_cut, _col_gem = st.columns(3)
+    with _col_dl:
+        st.download_button(
+            "⬇ Download Table",
+            data=df_cleaned.to_csv(index=False),
+            file_name="emuse_results.csv",
+            mime="text/csv",
+            use_container_width=True,
+            key="download_table_btn",
+        )
+    with _col_cut:
+        if st.button("🖼 Generate Cutout", use_container_width=True, key="generate_cutouts_btn"):
+            st.session_state.cutout_flow_active = True
+            st.session_state.show_credential_fields = False
+            st.session_state.aws_login_completed = False
+            st.session_state.casda_ready = False
+            st.session_state.pop("aws_login_output", None)
+            st.session_state.pop("aws_login_ok", None)
+            st.session_state.pop("emu_s3_fits_keys", None)
+            st.session_state.cutout_previews = []
+            st.session_state.cutout_meta = []
+            st.session_state.cutout_files = []
+            st.session_state.emu_images_source = probe_emu_images_source()
+            st.session_state.cutout_selector_ready = bool(
+                st.session_state.emu_images_source.get("available")
+            )
+    with _col_gem:
+        if st.button("🤖 Gemini Assistant", use_container_width=True, key="open_table_assistant_btn"):
+            st.session_state.table_assistant_open = True
 
     render_gemini_table_assistant(df_cleaned, gemini_api_key)
 
@@ -2033,23 +2096,42 @@ else:
         df_cleaned = st.session_state["results_df"]
         st.subheader(f"Top {min(top_n, len(df_cleaned))} similar sources (restored):")
         st.dataframe(df_cleaned.head(top_n), use_container_width=True, hide_index=False)
-        # REMOVED Download CSV button here
+
+        # --- Three-button action row ---
+        _col_dl2, _col_cut2, _col_gem2 = st.columns(3)
+        with _col_dl2:
+            st.download_button(
+                "⬇ Download Table",
+                data=df_cleaned.head(top_n).to_csv(index=False),
+                file_name="emuse_results.csv",
+                mime="text/csv",
+                use_container_width=True,
+                key="download_table_btn2",
+            )
+        with _col_cut2:
+            if st.button("🖼 Generate Cutout", use_container_width=True, key="generate_cutouts_btn"):
+                st.session_state.cutout_flow_active = True
+                st.session_state.show_credential_fields = False
+                st.session_state.aws_login_completed = False
+                st.session_state.casda_ready = False
+                st.session_state.pop("aws_login_output", None)
+                st.session_state.pop("aws_login_ok", None)
+                st.session_state.pop("emu_s3_fits_keys", None)
+                st.session_state.cutout_previews = []
+                st.session_state.cutout_meta = []
+                st.session_state.cutout_files = []
+                st.session_state.emu_images_source = probe_emu_images_source()
+                st.session_state.cutout_selector_ready = bool(
+                    st.session_state.emu_images_source.get("available")
+                )
+        with _col_gem2:
+            if st.button("🤖 Gemini Assistant", use_container_width=True, key="open_table_assistant_btn2"):
+                st.session_state.table_assistant_open = True
+
         render_gemini_table_assistant(df_cleaned.head(top_n), gemini_api_key)
 
         # --- Nice horizontal divider before cutouts section ---
         st.markdown('<div class="styled-divider"></div>', unsafe_allow_html=True)
-
-st.sidebar.markdown(
-    """
-    <div style='text-align: center;'>
-        <p style='color: #34495E; font-size: 0.9em; margin-top: 20px;'>
-            &copy; Nikhel Gupta | CSIRO
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
 
 # Only show cutout button if there are results
 results_for_cutout = st.session_state.get("results_df", None)
@@ -2073,75 +2155,25 @@ if results_for_cutout is not None and not results_for_cutout.empty:
     if "aws_login_remote" not in st.session_state:
         st.session_state.aws_login_remote = False
 
-    generate_cutouts = st.button(
-        "Generate a cutout",
-        use_container_width=True,
-        key="generate_cutouts_btn",
-    )
-
-    if generate_cutouts:
-        st.session_state.cutout_flow_active = True
-        st.session_state.show_credential_fields = False
-        st.session_state.aws_login_completed = False
-        st.session_state.casda_ready = False
-        st.session_state.pop("aws_login_output", None)
-        st.session_state.pop("aws_login_ok", None)
-        st.session_state.pop("emu_s3_fits_keys", None)
-        st.session_state.cutout_previews = []
-        st.session_state.cutout_meta = []
-        st.session_state.cutout_files = []
-        st.session_state.emu_images_source = probe_emu_images_source()
+    if st.session_state.get("cutout_flow_active"):
         st.session_state.cutout_selector_ready = bool(
-            st.session_state.emu_images_source.get("available")
+            st.session_state.get("emu_images_source", {}).get("available")
         )
 
     images_source = st.session_state.get("emu_images_source")
 
     if st.session_state.cutout_flow_active and images_source is not None:
         if images_source.get("available"):
-            st.success(images_source["message"])
             st.session_state.cutout_selector_ready = True
         else:
-            st.warning(images_source["message"])
-
-            if not aws_is_logged_in() and not st.session_state.aws_login_completed:
-                st.checkbox(
-                    "Use remote login (URL + code)",
-                    key="aws_login_remote",
-                )
-                if st.button("AWS login", use_container_width=True, key="aws_login_btn"):
-                    terminal = st.empty()
-                    with st.spinner("Running aws login..."):
-                        ok, output = run_aws_login(
-                            remote=st.session_state.aws_login_remote,
-                            output_placeholder=terminal,
-                        )
-                    st.session_state.aws_login_output = output
-                    st.session_state.aws_login_ok = ok
-                    if ok:
-                        st.session_state.aws_login_completed = True
-                        st.rerun()
-
-                if st.session_state.get("aws_login_output") is not None:
-                    st.code(st.session_state.aws_login_output, language="bash")
-                    if not st.session_state.get("aws_login_ok", False):
-                        st.error("AWS login did not succeed.")
-            else:
-                if st.button("Retry S3 access", use_container_width=True, key="retry_s3_btn"):
-                    st.session_state.pop("emu_s3_fits_keys", None)
-                    st.session_state.emu_images_source = probe_emu_images_source()
-                    st.session_state.cutout_selector_ready = bool(
-                        st.session_state.emu_images_source.get("available")
-                    )
-                    st.session_state.aws_login_completed = True
-                    st.rerun()
-                st.session_state.show_credential_fields = True
+            # S3 not accessible — go straight to CASDA credentials
+            st.session_state.show_credential_fields = True
+            st.session_state.aws_login_completed = True  # skip AWS login gate
 
     images_unavailable = bool(
         st.session_state.cutout_flow_active
         and images_source is not None
         and not images_source.get("available")
-        and (st.session_state.aws_login_completed or aws_is_logged_in())
     )
 
     if images_unavailable and (
@@ -2423,9 +2455,6 @@ if results_for_cutout is not None and not results_for_cutout.empty:
                 st.session_state.multiwave_optical_ra   = ra_val
                 st.session_state.multiwave_optical_dec  = dec_val
                 st.session_state.multiwave_optical_size = _opt_size
-                _sf1, _sf2, _sf3 = st.columns([1, 6, 1])
-                with _sf2:
-                    st.success(f"Optical/IR data fetched at {_opt_size:.1f}′ and saved to session folder.")
 
             # Refresh locals after fetch
             optical_hdu   = st.session_state.get("optical_hdu")
@@ -2584,44 +2613,64 @@ if results_for_cutout is not None and not results_for_cutout.empty:
                         st.image(cutout_previews[0], use_container_width=True, clamp=True)
 
         # ---- Download row ----
-        dl_cols = st.columns(3)
-        if fits_path and os.path.exists(fits_path):
+        _opt_path = st.session_state.get("optical_fits_path")
+        _ir_path  = st.session_state.get("ir_fits_path")
+        _has_optical = bool(_opt_path and os.path.exists(_opt_path))
+        _has_ir      = bool(_ir_path  and os.path.exists(_ir_path))
+        _has_radio   = bool(fits_path and os.path.exists(fits_path))
+
+        if _has_optical or _has_ir:
+            # Full 3-column layout
+            dl_cols = st.columns(3)
+            if _has_radio:
+                with open(fits_path, "rb") as _fh:
+                    _radio_bytes = _fh.read()
+                with dl_cols[0]:
+                    st.download_button(
+                        "⬇ Radio FITS",
+                        data=_radio_bytes,
+                        file_name=os.path.basename(fits_path),
+                        mime="application/fits",
+                        use_container_width=True,
+                        key="dl_radio_fits_btn",
+                    )
+            if _has_optical:
+                with open(_opt_path, "rb") as _fh:
+                    _opt_bytes = _fh.read()
+                with dl_cols[1]:
+                    st.download_button(
+                        "⬇ Optical FITS (ls-dr11)",
+                        data=_opt_bytes,
+                        file_name=st.session_state.get("optical_fits_filename", "optical.fits"),
+                        mime="application/fits",
+                        use_container_width=True,
+                        key="dl_optical_fits_btn",
+                    )
+            if _has_ir:
+                with open(_ir_path, "rb") as _fh:
+                    _ir_bytes = _fh.read()
+                with dl_cols[2]:
+                    st.download_button(
+                        "⬇ IR FITS (unwise-neo7)",
+                        data=_ir_bytes,
+                        file_name=st.session_state.get("ir_fits_filename", "ir.fits"),
+                        mime="application/fits",
+                        use_container_width=True,
+                        key="dl_ir_fits_btn",
+                    )
+        elif _has_radio:
+            # Radio only — center the single button
             with open(fits_path, "rb") as _fh:
                 _radio_bytes = _fh.read()
-            with dl_cols[0]:
+            _dl_l, _dl_m, _dl_r = st.columns([1, 2, 1])
+            with _dl_m:
                 st.download_button(
-                    "⬇ Radio FITS",
+                    "⬇ Download Radio FITS",
                     data=_radio_bytes,
                     file_name=os.path.basename(fits_path),
                     mime="application/fits",
                     use_container_width=True,
                     key="dl_radio_fits_btn",
-                )
-        _opt_path = st.session_state.get("optical_fits_path")
-        if _opt_path and os.path.exists(_opt_path):
-            with open(_opt_path, "rb") as _fh:
-                _opt_bytes = _fh.read()
-            with dl_cols[1]:
-                st.download_button(
-                    "⬇ Optical FITS (ls-dr11)",
-                    data=_opt_bytes,
-                    file_name=st.session_state.get("optical_fits_filename", "optical.fits"),
-                    mime="application/fits",
-                    use_container_width=True,
-                    key="dl_optical_fits_btn",
-                )
-        _ir_path = st.session_state.get("ir_fits_path")
-        if _ir_path and os.path.exists(_ir_path):
-            with open(_ir_path, "rb") as _fh:
-                _ir_bytes = _fh.read()
-            with dl_cols[2]:
-                st.download_button(
-                    "⬇ IR FITS (unwise-neo7)",
-                    data=_ir_bytes,
-                    file_name=st.session_state.get("ir_fits_filename", "ir.fits"),
-                    mime="application/fits",
-                    use_container_width=True,
-                    key="dl_ir_fits_btn",
                 )
 
     elif st.session_state.get("cutout_fig_path", None):

@@ -1,7 +1,24 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: emuse
+  namespace: csa-parkes-team
+  labels:
+    app: emuse
+  annotations:
+    # IRSA: links this ServiceAccount to the IAM role that has S3 access.
+    # Replace with the ARN of the role that has s3:GetObject / s3:ListBucket
+    # on the emu-data-bucket-2026 bucket.
+    eks.amazonaws.com/role-arn: arn:aws:iam::444488357543:role/REPLACE_WITH_S3_ROLE_ARN
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: emuse
+  namespace: csa-parkes-team
+  labels:
+    app: emuse
+    toolkit.fluxcd.io/tenant: csa-parkes-team
 spec:
   replicas: 1
   selector:
@@ -12,41 +29,79 @@ spec:
       labels:
         app: emuse
     spec:
+      serviceAccountName: emuse   # <-- binds pod to the IAM role above
       containers:
         - name: emuse
-          image: nikhel/emuse-amd:latest
+          image: docker.io/nikhel/emuse:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8501
+              protocol: TCP
+          env:
+            - name: AWS_DEFAULT_REGION
+              value: ap-southeast-2
+            - name: EMU_S3_BUCKET
+              value: emu-data-bucket-2026
+          resources:
+            requests:
+              cpu: 500m
+              memory: 4Gi
+            limits:
+              cpu: "2"
+              memory: 8Gi
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 10
+            periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: emuse-service
+  name: emuse
+  namespace: csa-parkes-team
+  labels:
+    app: emuse
 spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8501
+      protocol: TCP
+      name: http
   selector:
     app: emuse
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8501
-  type: ClusterIP
-
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: emuse-ingress
+  name: emuse
+  namespace: csa-parkes-team
+  labels:
+    app: emuse
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    alb.ingress.kubernetes.io/healthcheck-path: /_stcore/health
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-southeast-2:444488357543:certificate/1aa65e02-d62f-4a65-a672-1bf084329aba
+    external-dns.alpha.kubernetes.io/hostname: emuse.csiro.easi-eo.solutions
 spec:
-  ingressClassName: nginx
+  ingressClassName: easi-group
   rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: emuse-service
-            port:
-              number: 80
+    - host: emuse.csiro.easi-eo.solutions
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: emuse
+                port:
+                  number: 80
