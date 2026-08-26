@@ -367,6 +367,14 @@ st.markdown("""
         width: 100%;
         opacity: 0.6;
     }
+    /* Centre Display layer radio options and close gap below heading */
+    div[data-testid="stRadio"] > div[role="radiogroup"] {
+        justify-content: center !important;
+        display: flex !important;
+    }
+    div[data-testid="stRadio"] {
+        margin-top: -0.5rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -2470,17 +2478,6 @@ if results_for_cutout is not None and not results_for_cutout.empty:
             layer_options.append("Infrared (unwise-neo7)")
         if has_optical:
             layer_options.append("Optical (ls-dr11)")
-
-        # Inject CSS to centre only the radio options row (not the label)
-        st.markdown("""
-            <style>
-            div[data-testid="stRadio"] > div {
-                justify-content: center;
-            }
-            div[data-testid="stRadio"] {
-                margin-top: -0.5rem;
-            }
-            </style>""", unsafe_allow_html=True)
 
         _l1, _lmid, _l3 = st.columns([1, 6, 1])
         with _lmid:
