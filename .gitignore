@@ -1,0 +1,4 @@
+# Ignore all files ending in:
+*.pt
+*.pkl
+Downloads/
