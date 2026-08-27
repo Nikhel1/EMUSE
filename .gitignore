@@ -2,3 +2,5 @@
 *.pt
 *.pkl
 Downloads/
+.DS_Store
+__pycache__
