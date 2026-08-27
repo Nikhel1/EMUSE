@@ -357,13 +357,3 @@ aws s3 ls s3://emu-data-bucket-2026/
 If this lists the uploaded files (from either environment), the whole chain — AWS account and IAM user → CLI install → login → bucket creation → upload → bucket policy → EASI access — is working end to end, and the data can be read directly into analysis code (`xarray`, `astropy`, `dask`, etc.), without needing to be downloaded to local disk first.
 
 For apps running on Kubernetes under the Argo service role (`csa-parkes-team-service-argo`), the equivalent credentials are typically injected automatically by the cluster rather than exported manually — check with whoever set up that service for the specifics.
-
----
-
-## Quick troubleshooting checklist
-
-- **`aws: command not found`** → the `PATH` update from Step 2 didn't take effect in this shell; re-run `export PATH="$HOME/.local/bin:$PATH"` or open a new terminal.
-- **`aws sts get-caller-identity` fails / expired token** → the `aws login` session has timed out; log in again.
-- **`AccessDenied` when EASI tries to read the bucket** → check the bucket policy's `Resource` fields match the actual bucket name exactly, and that both the object-level and bucket-level statements are present, with the correct role ARN(s) listed.
-- **Bucket name rejected on creation** → S3 bucket names must be globally unique, lowercase, 3–63 characters, and contain no underscores, spaces, or uppercase letters.
-- **Costs higher than expected** → run `aws s3 ls s3://<bucket>/ --recursive --summarize` to check total object count/size, and confirm which storage class objects are actually in (S3 Standard is the default and the most expensive per GB).
