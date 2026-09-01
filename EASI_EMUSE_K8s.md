@@ -2,7 +2,7 @@
 
 ## What this document is about
 
-EMUSE (https://doi.org/10.1017/pasa.2025.10064) is an interactive app for exploring EMU radio-survey image cutouts. This document explains how to package EMUSE into a container image, what Kubernetes is and how it relates to that container, and how to actually get the app running as a live web service on EASI's shared Kubernetes cluster — including how it reads its image cutouts from the S3 bucket set up in the companion document `EASI_storage_S3bucket.md`, and how deployments are kept in sync with a git repository using Flux.
+EMUSE (https://doi.org/10.1017/pasa.2025.10064) is an interactive app for exploring EMU radio survey. This document explains how to package EMUSE into a container image, what Kubernetes is and how it relates to that container, and how to actually get the app running as a live web service on EASI's shared Kubernetes cluster — including how it reads its image cutouts from the S3 bucket set up in the companion document `EASI_storage_S3bucket.md`, and how deployments are kept in sync with a git repository using Flux.
 
 The rough shape of the pipeline is:
 
