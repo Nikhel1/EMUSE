@@ -1,0 +1,7 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# CI / development tools — NOT installed in the Docker image.
+# The GitHub Actions workflow installs these directly (see ci-cd.yml).
+# To install locally:  pip install -r requirements-dev.txt
+# ──────────────────────────────────────────────────────────────────────────────
+ruff==0.9.9
+bandit==1.8.3

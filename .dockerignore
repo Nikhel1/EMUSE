@@ -1,0 +1,35 @@
+# ── Large runtime data files (downloaded at container start-up via gdown) ──────
+*.pt
+*.pkl
+
+# ── Dev / local artefacts ──────────────────────────────────────────────────────
+Downloads/
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── CI / git ───────────────────────────────────────────────────────────────────
+.git/
+.github/
+.gitignore
+
+# ── Docs / internal only ──────────────────────────────────────────────────────
+EASI_storage_S3bucket.md
+EASI_EMUSE_K8s.md
+EASI_storage_S3bucket.pdf
+EASI_EMUSE_K8s.pdf
+csa-easi-astro-flux-admin/
+
+# ── Dev container ─────────────────────────────────────────────────────────────
+.devcontainer/
+
+# ── Ruff / Bandit caches ───────────────────────────────────────────────────────
+.ruff_cache/
+.bandit/
