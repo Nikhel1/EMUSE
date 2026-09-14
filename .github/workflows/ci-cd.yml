@@ -135,16 +135,44 @@ jobs:
             &
           echo "STREAMLIT_PID=$!" >> "$GITHUB_ENV"
 
-      - name: Wait for app to become healthy
-        # Poll /_stcore/health up to 30 minutes (model download can be slow on
-        # GitHub's network; adjust --max-time if Drive is fast for you).
+      - name: Wait for app to become fully active
+        # Two-phase wait:
+        #
+        # Phase 1 — wait for the Streamlit web server to start (usually <30s).
+        #   /_stcore/health returns 200 as soon as the HTTP server is up,
+        #   before any app code has run.
+        #
+        # Phase 2 — trigger and wait for load_model_and_data() to complete.
+        #   Streamlit runs the script (and therefore gdown downloads + model
+        #   loading) on the first real request to '/'. We hit '/' once to kick
+        #   it off, then keep polling until it returns HTTP 200 — meaning the
+        #   page rendered successfully and load_model_and_data() finished.
+        #   This can take 20-40 min on first run (gdown ~2 GB).
+        #   Timeout is set to 60 minutes as a safety cap.
         run: |
-          echo "Waiting for Streamlit health endpoint..."
-          timeout 1800 bash -c \
-            'until curl -sf http://localhost:8501/_stcore/health; do
-               echo "  still waiting..."; sleep 15;
+          echo "── Phase 1: waiting for Streamlit web server to start ──"
+          timeout 120 bash -c \
+            'until curl -sf http://localhost:8501/_stcore/health > /dev/null; do
+               echo "  web server not up yet, retrying in 5s..."; sleep 5;
              done'
-          echo "✅ Streamlit is healthy"
+          echo "✅ Web server is up"
+
+          echo ""
+          echo "── Phase 2: triggering and waiting for load_model_and_data() ──"
+          echo "   (gdown will download ~2 GB — this may take 20–40 minutes)"
+          # Hit '/' to start script execution, then poll until it succeeds.
+          # -o /dev/null suppresses the HTML body; -w prints the HTTP status.
+          # 200 = page rendered (model loaded); anything else = still loading.
+          timeout 3600 bash -c \
+            'while true; do
+               STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+                 --max-time 10 http://localhost:8501/)
+               if [ "$STATUS" = "200" ]; then
+                 echo "✅ App fully loaded (HTTP 200 from /)"; break
+               fi
+               echo "  status=${STATUS} — model still loading, waiting 30s..."
+               sleep 30
+             done'
 
       - name: Stop Streamlit
         if: always()
