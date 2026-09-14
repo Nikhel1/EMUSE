@@ -142,13 +142,13 @@ jobs:
         #   /_stcore/health returns 200 as soon as the HTTP server is up,
         #   before any app code has run.
         #
-        # Phase 2 — trigger and wait for load_model_and_data() to complete.
-        #   Streamlit runs the script (and therefore gdown downloads + model
-        #   loading) on the first real request to '/'. We hit '/' once to kick
-        #   it off, then keep polling until it returns HTTP 200 — meaning the
-        #   page rendered successfully and load_model_and_data() finished.
-        #   This can take 20-40 min on first run (gdown ~2 GB).
-        #   Timeout is set to 60 minutes as a safety cap.
+        # Phase 2 — wait for load_model_and_data() to complete.
+        #   Streamlit serves HTTP 200 immediately (page shell + WebSocket),
+        #   so HTTP polling cannot detect when model loading is done.
+        #   Instead, main.py writes a sentinel file '.model_ready' at the very
+        #   end of load_model_and_data(). We poll for that file.
+        #   gdown downloads ~2 GB so this can take 20–40 minutes.
+        #   Timeout is 60 minutes as a safety cap.
         run: |
           echo "── Phase 1: waiting for Streamlit web server to start ──"
           timeout 120 bash -c \
@@ -158,21 +158,13 @@ jobs:
           echo "✅ Web server is up"
 
           echo ""
-          echo "── Phase 2: triggering and waiting for load_model_and_data() ──"
+          echo "── Phase 2: waiting for load_model_and_data() to complete ──"
           echo "   (gdown will download ~2 GB — this may take 20–40 minutes)"
-          # Hit '/' to start script execution, then poll until it succeeds.
-          # -o /dev/null suppresses the HTML body; -w prints the HTTP status.
-          # 200 = page rendered (model loaded); anything else = still loading.
           timeout 3600 bash -c \
-            'while true; do
-               STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-                 --max-time 10 http://localhost:8501/)
-               if [ "$STATUS" = "200" ]; then
-                 echo "✅ App fully loaded (HTTP 200 from /)"; break
-               fi
-               echo "  status=${STATUS} — model still loading, waiting 30s..."
-               sleep 30
+            'until [ -f .model_ready ]; do
+               echo "  model not ready yet, waiting 30s..."; sleep 30;
              done'
+          echo "✅ Model loaded — app is fully active"
 
       - name: Stop Streamlit
         if: always()
