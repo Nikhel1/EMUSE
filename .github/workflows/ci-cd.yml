@@ -132,7 +132,7 @@ jobs:
             --server.headless true \
             --server.port 8501 \
             --server.address 0.0.0.0 \
-            &
+            > streamlit.log 2>&1 &
           echo "STREAMLIT_PID=$!" >> "$GITHUB_ENV"
 
       - name: Wait for app to become fully active
@@ -149,6 +149,9 @@ jobs:
         #   end of load_model_and_data(). We poll for that file.
         #   gdown downloads ~2 GB so this can take 20–40 minutes.
         #   Timeout is 60 minutes as a safety cap.
+        #
+        # Streamlit output (including gdown progress bars) is streamed live
+        # via `tail -f streamlit.log` running in the background.
         run: |
           echo "── Phase 1: waiting for Streamlit web server to start ──"
           timeout 120 bash -c \
@@ -160,10 +163,19 @@ jobs:
           echo ""
           echo "── Phase 2: waiting for load_model_and_data() to complete ──"
           echo "   (gdown will download ~2 GB — this may take 20–40 minutes)"
+          echo "   Streaming Streamlit output below:"
+          echo ""
+
+          # Stream the Streamlit log (gdown progress bars etc.) live into the
+          # Actions log while we wait for the sentinel file.
+          tail -f streamlit.log &
+          TAIL_PID=$!
+
           timeout 3600 bash -c \
-            'until [ -f .model_ready ]; do
-               echo "  model not ready yet, waiting 30s..."; sleep 30;
-             done'
+            'until [ -f .model_ready ]; do sleep 10; done'
+
+          kill "$TAIL_PID" 2>/dev/null || true
+          echo ""
           echo "✅ Model loaded — app is fully active"
 
       - name: Stop Streamlit
