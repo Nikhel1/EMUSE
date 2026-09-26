@@ -425,16 +425,6 @@ def load_model_and_data():
         st.info("Downloading source catalogue index (~22 MB) — this happens once on first start...")
         gdown.download(idx_url, idx_file, quiet=False)
     idx_dict = pd.read_pickle(idx_file)
-
-    # Write a sentinel file so the CI smoke test can detect that model loading
-    # completed successfully. The file is ignored by git (*.sentinel in .gitignore
-    # not needed — it's ephemeral, only exists in the CI runner's workspace).
-    try:
-        with open(".model_ready", "w") as _f:
-            _f.write("ok")
-    except OSError:
-        pass  # non-fatal — only matters in CI
-
     return model, preprocess, tokenizer, all_image_features, idx_dict
 
 model, preprocess, tokenizer, all_image_features, idx_dict = load_model_and_data()

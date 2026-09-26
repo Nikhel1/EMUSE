@@ -100,16 +100,16 @@ jobs:
 
   # ────────────────────────────────────────────────────────────────────────────
   # JOB 2 – Smoke test
-  # Installs dependencies and verifies the Streamlit process starts and the
-  # health endpoint responds on port 8501.
-  # The data files (epoch_99.pt, all_sbid_image_features.pt, *.pkl) are
-  # downloaded at runtime via gdown inside load_model_and_data(); this job
-  # lets that happen — it typically takes 5–15 min depending on Drive speed.
+  # Runs smoke_test.py directly with Python (no Streamlit process involved).
+  # This avoids all headless/WebSocket timing issues — the script downloads
+  # missing files via gdown, loads the model and data, runs a sanity query,
+  # and exits 0 on success or 1 on failure with a full traceback.
+  # gdown downloads ~2 GB so this job can take 20–40 minutes on first run.
   # ────────────────────────────────────────────────────────────────────────────
   smoke-test:
-    name: Smoke Test (app starts on :8501)
+    name: Smoke Test (model loads + query runs)
     runs-on: ubuntu-latest
-    needs: lint            # don't bother booting the app if lint fails
+    needs: lint
 
     steps:
       - name: Checkout code
@@ -126,61 +126,11 @@ jobs:
           pip install --upgrade pip
           pip install --no-cache-dir -r requirements.txt
 
-      - name: Start Streamlit in background
-        run: |
-          streamlit run main.py \
-            --server.headless true \
-            --server.port 8501 \
-            --server.address 0.0.0.0 \
-            > streamlit.log 2>&1 &
-          echo "STREAMLIT_PID=$!" >> "$GITHUB_ENV"
-
-      - name: Wait for app to become fully active
-        # Two-phase wait:
-        #
-        # Phase 1 — wait for the Streamlit web server to start (usually <30s).
-        #   /_stcore/health returns 200 as soon as the HTTP server is up,
-        #   before any app code has run.
-        #
-        # Phase 2 — wait for load_model_and_data() to complete.
-        #   Streamlit serves HTTP 200 immediately (page shell + WebSocket),
-        #   so HTTP polling cannot detect when model loading is done.
-        #   Instead, main.py writes a sentinel file '.model_ready' at the very
-        #   end of load_model_and_data(). We poll for that file.
-        #   gdown downloads ~2 GB so this can take 20–40 minutes.
-        #   Timeout is 60 minutes as a safety cap.
-        #
-        # Streamlit output (including gdown progress bars) is streamed live
-        # via `tail -f streamlit.log` running in the background.
-        run: |
-          echo "── Phase 1: waiting for Streamlit web server to start ──"
-          timeout 120 bash -c \
-            'until curl -sf http://localhost:8501/_stcore/health > /dev/null; do
-               echo "  web server not up yet, retrying in 5s..."; sleep 5;
-             done'
-          echo "✅ Web server is up"
-
-          echo ""
-          echo "── Phase 2: waiting for load_model_and_data() to complete ──"
-          echo "   (gdown will download ~2 GB — this may take 20–40 minutes)"
-          echo "   Streaming Streamlit output below:"
-          echo ""
-
-          # Stream the Streamlit log (gdown progress bars etc.) live into the
-          # Actions log while we wait for the sentinel file.
-          tail -f streamlit.log &
-          TAIL_PID=$!
-
-          timeout 3600 bash -c \
-            'until [ -f .model_ready ]; do sleep 10; done'
-
-          kill "$TAIL_PID" 2>/dev/null || true
-          echo ""
-          echo "✅ Model loaded — app is fully active"
-
-      - name: Stop Streamlit
-        if: always()
-        run: kill "$STREAMLIT_PID" 2>/dev/null || true
+      - name: Run smoke test
+        # No timeout wrapper needed — smoke_test.py has its own gdown progress
+        # output and will naturally fail if downloads are broken.
+        # GitHub Actions has a 6-hour job limit which is more than enough.
+        run: python smoke_test.py
 
   # ────────────────────────────────────────────────────────────────────────────
   # JOB 3 – Build & push multi-platform Docker image
