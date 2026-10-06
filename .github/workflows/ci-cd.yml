@@ -126,11 +126,35 @@ jobs:
           pip install --upgrade pip
           pip install --no-cache-dir -r requirements.txt
 
+      - name: Restore data file cache
+        # Restores files downloaded on a previous run (same Drive IDs = same
+        # key). On a cache miss the files simply aren't present and
+        # smoke_test.py downloads them fresh via gdown.
+        uses: actions/cache@v4
+        with:
+          path: |
+            epoch_99.pt
+            all_sbid_image_features.pt
+            allidx_sbid_ra_dec_flux_catwise.pkl
+          key: emuse-data-files-v1
+
       - name: Run smoke test
         # No timeout wrapper needed — smoke_test.py has its own gdown progress
         # output and will naturally fail if downloads are broken.
         # GitHub Actions has a 6-hour job limit which is more than enough.
         run: python smoke_test.py
+
+      - name: Save data files to cache
+        # Always save after a successful smoke test so the build-and-push job
+        # (and future smoke-test runs) can reuse the files without re-downloading.
+        uses: actions/cache/save@v4
+        if: success()
+        with:
+          path: |
+            epoch_99.pt
+            all_sbid_image_features.pt
+            allidx_sbid_ra_dec_flux_catwise.pkl
+          key: emuse-data-files-v1
 
   # ────────────────────────────────────────────────────────────────────────────
   # JOB 3 – Build & push multi-platform Docker image
@@ -151,6 +175,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Restore data files from cache
+        # The smoke-test job saved these after a successful download + test.
+        # Restoring them here puts the files in the workspace so COPY . .
+        # in the Dockerfile picks them up — no gdown at build time.
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            epoch_99.pt
+            all_sbid_image_features.pt
+            allidx_sbid_ra_dec_flux_catwise.pkl
+          key: emuse-data-files-v1
+          fail-on-cache-miss: true
 
       # Derive the semver tag: 1.0.<run_number>
       # Also expose the short SHA for traceability.

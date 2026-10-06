@@ -1,6 +1,10 @@
-# ── Large runtime data files (downloaded at container start-up via gdown) ──────
-*.pt
-*.pkl
+# ── Large runtime data files ───────────────────────────────────────────────────
+# *.pt and *.pkl are intentionally NOT excluded here — they are downloaded by
+# the CI smoke-test job, cached via actions/cache, and restored into the build
+# context before `docker buildx build` runs, so COPY . . picks them up and
+# bakes them into the image. If you are building locally without those files
+# present the build will still succeed but the container will download them at
+# first start via gdown (the fallback in main.py is still in place).
 
 # ── Dev / local artefacts ──────────────────────────────────────────────────────
 Downloads/
